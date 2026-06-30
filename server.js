@@ -192,7 +192,7 @@ app.post('/api/upload', verifyToken, upload.array('images', 20), (req, res) => {
         }
 
         // Tạo mảng chứa đường link của các file vừa lưu
-        const fileUrls = req.files.map(file => `http://localhost:5000/uploads/${file.filename}`);
+        const fileUrls = req.files.map(file => `https://my-tale.onrender.com/uploads/${file.filename}`);
         
         // Trả danh sách link về cho giao diện
         res.json({ urls: fileUrls });
