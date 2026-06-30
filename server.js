@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const Story = require('./models/Story');
 const Message = require('./models/Message');
+const Report = require('./models/Report');
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
@@ -396,7 +397,59 @@ app.post('/api/messages', async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi gửi tin nhắn' });
     }
 });
+// --- KHU VỰC ADMIN & TỐ CÁO ---
 
+// 1. Người dùng gửi Đơn tố cáo
+app.post('/api/reports', async (req, res) => {
+    try {
+        const newReport = new Report(req.body);
+        await newReport.save();
+        res.json({ message: 'Đã gửi tố cáo thành công! Cảm ơn bạn đã giúp cộng đồng trong sạch hơn.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi gửi tố cáo' });
+    }
+});
+
+// 2. Admin lấy danh sách Tố cáo
+app.get('/api/reports', verifyToken, async (req, res) => {
+    try {
+        const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 });
+        res.json(reports);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi lấy danh sách tố cáo' });
+    }
+});
+
+// 3. Admin xử lý Đơn (Ban hoặc Bỏ qua)
+app.post('/api/reports/:id/resolve', verifyToken, async (req, res) => {
+    try {
+        const { action, reportedUuid } = req.body; 
+        const report = await Report.findById(req.params.id);
+        
+        if (action === 'ban' && reportedUuid) {
+            // Tống mã UUID vào danh sách đen (sử dụng trường ipAddress tạm thời cho cả IP và UUID)
+            const newBan = new BannedUser({ ipAddress: reportedUuid });
+            await newBan.save();
+        }
+        
+        report.status = 'resolved';
+        await report.save();
+        res.json({ message: 'Đã xử lý đơn tố cáo!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xử lý' });
+    }
+});
+
+// 4. Admin Gỡ Ban (Unban) thủ công
+app.post('/api/unban', verifyToken, async (req, res) => {
+    try {
+        const { target } = req.body; // Có thể là IP hoặc UUID
+        await BannedUser.findOneAndDelete({ ipAddress: target });
+        res.json({ message: `Đã ân xá thành công cho: ${target}` });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi ân xá' });
+    }
+});
 // Định nghĩa cổng chạy server
 const PORT = process.env.PORT || 5000;
 
