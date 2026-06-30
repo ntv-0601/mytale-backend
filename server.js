@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const Story = require('./models/Story');
-
+const Message = require('./models/Message');
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
@@ -270,7 +270,54 @@ app.delete('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req,
         res.status(500).json({ message: 'Lỗi khi xóa chương' });
     }
 });
+// --- KHU VỰC CỘNG ĐỒNG ẨN DANH ---
 
+// 1. Danh sách từ cấm (Bạn hãy bổ sung thêm các từ tục tĩu, nhạy cảm vào đây)
+const badWords = ['từ_bậy_1', 'từ_bậy_2', 'phân_biệt']; 
+
+// 2. Sổ đen (Danh sách thiết bị bị cấm - Tạm lưu trong RAM máy chủ)
+let bannedUUIDs = []; 
+
+// API: Lấy danh sách tin nhắn (Tối đa 100 tin gần nhất để web không bị nặng)
+app.get('/api/messages', async (req, res) => {
+    try {
+        const messages = await Message.find().sort({ createdAt: 1 }).limit(100);
+        res.json(messages);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi lấy tin nhắn' });
+    }
+});
+
+// API: Gửi tin nhắn có kèm trạm kiểm duyệt
+app.post('/api/messages', async (req, res) => {
+    try {
+        const { uuid, content, replyToId, replyToText } = req.body;
+
+        // 1. Kiểm tra Sổ đen
+        if (bannedUUIDs.includes(uuid)) {
+            return res.status(403).json({ message: 'Thiết bị của bạn đã bị cấm vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
+        }
+
+        // 2. Quét từ ngữ vi phạm
+        const lowerContent = content.toLowerCase();
+        // Kiểm tra xem trong nội dung có chứa bất kỳ từ nào nằm trong danh sách cấm không
+        const containsBadWord = badWords.some(word => lowerContent.includes(word.toLowerCase()));
+
+        if (containsBadWord) {
+            // Tống mã thiết bị này vào Sổ đen ngay lập tức
+            bannedUUIDs.push(uuid);
+            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Thiết bị của bạn đã bị cấm.' });
+        }
+
+        // 3. Nếu an toàn, cho phép lưu vào Database
+        const newMessage = new Message({ uuid, content, replyToId, replyToText });
+        await newMessage.save();
+
+        res.json(newMessage);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi gửi tin nhắn' });
+    }
+});
 
 // Định nghĩa cổng chạy server
 const PORT = process.env.PORT || 5000;
