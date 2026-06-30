@@ -289,14 +289,18 @@ app.get('/api/messages', async (req, res) => {
 
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Bản nâng cấp Database)
+// API: Gửi tin nhắn có kèm trạm kiểm duyệt (Chặn theo IP)
 app.post('/api/messages', async (req, res) => {
     try {
         const { uuid, content, replyToId, replyToText } = req.body;
 
-        // 1. Kiểm tra Sổ đen trực tiếp dưới Database
-        const isBanned = await BannedUser.findOne({ uuid: uuid });
+        // Thuật toán bóc tách IP thật của người gửi (Kể cả khi dùng Render)
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+        // 1. Kiểm tra Sổ đen xem IP này có tiền án không
+        const isBanned = await BannedUser.findOne({ ipAddress: clientIp });
         if (isBanned) {
-            return res.status(403).json({ message: 'Thiết bị của bạn đã bị cấm vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
+            return res.status(403).json({ message: 'Đường truyền mạng của bạn đã bị chặn vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
         }
 
         // 2. Quét từ ngữ vi phạm
@@ -304,11 +308,11 @@ app.post('/api/messages', async (req, res) => {
         const containsBadWord = badWords.some(word => lowerContent.includes(word.toLowerCase()));
 
         if (containsBadWord) {
-            // Tống mã thiết bị này vào Sổ đen Database vĩnh viễn
-            const newBan = new BannedUser({ uuid: uuid });
+            // Tống cổ địa chỉ IP này vào Sổ đen
+            const newBan = new BannedUser({ ipAddress: clientIp });
             await newBan.save();
             
-            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Thiết bị của bạn đã bị cấm.' });
+            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Đường truyền của bạn đã bị cấm.' });
         }
 
         // 3. Nếu an toàn, cho phép lưu vào Database
