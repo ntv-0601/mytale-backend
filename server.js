@@ -10,23 +10,26 @@ const Story = require('./models/Story');
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+
 
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
-}
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// 2. Cấu hình nơi lưu file và tên file
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Lưu vào thư mục uploads
-    },
-    filename: (req, file, cb) => {
-        // Đặt tên file = thời gian hiện tại + đuôi file gốc (chống trùng tên)
-        cb(null, Date.now() + path.extname(file.originalname)); 
-    }
+// Lấy chìa khóa từ file bảo mật .env
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Cấu hình gói hàng gửi đi
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'my-tale-images', // Tên thư mục nó sẽ tự tạo trên Cloudinary
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'gif']
+  },
 });
 const upload = multer({ storage: storage });
 
@@ -191,14 +194,13 @@ app.post('/api/upload', verifyToken, upload.array('images', 20), (req, res) => {
             return res.status(400).json({ message: 'Không có file nào được tải lên!' });
         }
 
-        // Tạo mảng chứa đường link của các file vừa lưu
-        const fileUrls = req.files.map(file => `https://my-tale.onrender.com/uploads/${file.filename}`);
+        // Với Cloudinary, đường link vĩnh viễn đã nằm sẵn trong thuộc tính 'path'
+        const fileUrls = req.files.map(file => file.path);
         
-        // Trả danh sách link về cho giao diện
         res.json({ urls: fileUrls });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Lỗi khi tải ảnh lên máy chủ' });
+        res.status(500).json({ message: 'Lỗi khi tải ảnh lên Cloudinary' });
     }
 });
 app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
