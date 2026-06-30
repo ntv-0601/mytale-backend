@@ -102,16 +102,16 @@ app.get('/api/setup-admin', async (req, res) => {
 
         // Mã hóa mật khẩu (Ví dụ mật khẩu là: 123456)
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('123456', salt);
+        const hashedPassword = await bcrypt.hash('ToThuongCau', salt);
 
         // Tạo tài khoản mới lưu vào Database
         const admin = new User({
-            username: 'admin',
+            username: 'Vinh Ng',
             password: hashedPassword
         });
         
         await admin.save();
-        res.json({ message: 'Tạo tài khoản Admin thành công! Tài khoản: admin | Mật khẩu: 123456' });
+        res.json({ message: 'Tạo tài khoản Admin thành công! Tài khoản: Vinh Ng | Mật khẩu: ToThuongCau' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Lỗi khi tạo tài khoản' });
