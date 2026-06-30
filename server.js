@@ -359,6 +359,9 @@ app.post('/api/messages', async (req, res) => {
 
 // Định nghĩa cổng chạy server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy thành công tại http://localhost:${PORT}`);
+
+// Ép buộc hệ thống mở cửa ở địa chỉ 0.0.0.0 để Render có thể nhìn thấy
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server đang chạy ngon lành trên cổng ${PORT}`);
+    console.log(`📡 Địa chỉ IP mạng đang lắng nghe: 0.0.0.0`);
 });
