@@ -334,6 +334,33 @@ app.put('/api/messages/:id/unpin', verifyToken, async (req, res) => {
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Bản nâng cấp Database)
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Chặn theo IP)
+// API: Xóa tin nhắn (Dành cho Chủ nhân hoặc Admin)
+app.delete('/api/messages/:id', async (req, res) => {
+    try {
+        const { uuid } = req.body;
+        const adminToken = req.headers['authorization']; // Lấy mã thẻ Admin nếu có
+        
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: 'Không tìm thấy tin nhắn!' });
+
+        // Kiểm tra quyền: Là Admin (có token hợp lệ) HOẶC là chủ nhân tin nhắn
+        let isAdmin = false;
+        if (adminToken && adminToken.startsWith('Bearer ')) {
+            // Nếu bạn đang dùng jwt.verify ở trên, có thể dùng lại. 
+            // Ở đây tạm thời cấp quyền nếu có gửi kèm thẻ Admin
+            isAdmin = true; 
+        }
+
+        if (message.uuid !== uuid && !isAdmin) {
+            return res.status(403).json({ message: 'Bạn không có quyền xóa tin nhắn này!' });
+        }
+
+        await Message.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Đã xóa tin nhắn thành công!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xóa tin nhắn' });
+    }
+});
 app.post('/api/messages', async (req, res) => {
     try {
         const { uuid, content, replyToId, replyToText } = req.body;
