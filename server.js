@@ -94,6 +94,22 @@ app.get('/api/seed', async (req, res) => {
         res.status(500).json({ message: "Có lỗi xảy ra" });
     }
 });
+// API: Cập nhật lượt thả tim (Không cần Token để độc giả nào cũng thả tim được)
+app.put('/api/stories/:id/like', async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện!' });
+
+        // Cập nhật số tim mới từ Frontend gửi lên
+        story.likes = req.body.likes;
+        await story.save();
+
+        res.json({ message: 'Đã lưu tim thành công!' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Lỗi server khi thả tim' });
+    }
+});
 app.get('/api/setup-admin', async (req, res) => {
     try {
         // Kiểm tra xem đã có admin chưa
