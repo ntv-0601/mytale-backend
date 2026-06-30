@@ -332,6 +332,36 @@ app.put('/api/messages/:id/unpin', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi bỏ ghim' });
     }
 });
+// API: Thả cảm xúc cho tin nhắn
+app.put('/api/messages/:id/react', async (req, res) => {
+    try {
+        const { uuid, type } = req.body;
+        const validTypes = ['like', 'heart', 'haha', 'cry', 'sad', 'angry', 'wow'];
+        
+        if (!validTypes.includes(type)) return res.status(400).json({ message: 'Cảm xúc không hợp lệ!' });
+
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: 'Không tìm thấy tin nhắn!' });
+
+        // Kiểm tra xem người này đã thả cảm xúc TYPE này chưa
+        const hasReactedThisType = message.reactions[type].includes(uuid);
+
+        // Xóa người dùng khỏi TẤT CẢ các mảng cảm xúc (Đảm bảo mỗi người chỉ 1 cảm xúc/tin)
+        validTypes.forEach(t => {
+            message.reactions[t] = message.reactions[t].filter(u => u !== uuid);
+        });
+
+        // Nếu họ chưa thả (hoặc đang đổi sang cảm xúc khác), thì thêm vào
+        if (!hasReactedThisType) {
+            message.reactions[type].push(uuid);
+        }
+
+        await message.save();
+        res.json(message);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi thả cảm xúc' });
+    }
+});
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Bản nâng cấp Database)
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Chặn theo IP)
