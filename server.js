@@ -273,7 +273,20 @@ app.delete('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req,
 // --- KHU VỰC CỘNG ĐỒNG ẨN DANH ---
 
 // 1. Danh sách từ cấm (Bạn hãy bổ sung thêm các từ tục tĩu, nhạy cảm vào đây)
-const badWords = ['từ_bậy_1', 'từ_bậy_2', 'phân_biệt']; 
+const badWords = [
+    ' lồn', 'lồn ', ' cặc', 'cặc ', ' đụ', 'đụ ', 'địt', 
+    'đĩ', 'phò', 'chó đẻ', 'đmm', 'đkm', 'vãi cả lồn', 
+    'ngu học', 'óc chó', 'nứng', 'dâm', "dâm thủy", 'buồi', 'buoi', 'đéo', 'đéo ', 'đéo ', 'đéo',
+    'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 'đéo ', 
+    'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 'đéo ', 'đéo', 'đéo ', 
+    'vãi lồn ', 'vãi  lồn', 'vãi lồn', 'vãilồn', "vãi cả lồn","súc sinh", "Súc sinh", 'địt','đụ','đéo','lồn','cặc','cu','buồi','bướm','chim','dái','đĩ','phò','đĩ điếm','điếm','đĩ thõa','đĩ chó',
+    'dit','du','deo','lon','cac','cu','buoi','buom','chim','dai','di','pho','di diem',
+    'dm','dmm','dcm','đm','đmm','đcm','cl','cc','vl','vcl','vkl','vcc',
+    'đ!t','đ!t mẹ','đ*t','djt','d!t','d*t','d1t','d!o','đ3o','d3o','đ3o mẹ','l0n','l*n','l**n','1on','lonn','c4c','c@c','c*c','c4k','cak','kak','caccc','bu0i','b*oi','bưởi','c.u','l.o.n','c.a.c','đ ị t','đ ụ','l ồ n',
+    'địt mẹ','địt má','địt bà','địt cụ','địt con mẹ','đụ mẹ','đụ má','đụ bà','đéo mẹ','đéo má','đéo biết','đéo chịu','cặc mẹ','cặc tao','lồn mẹ' , 'lồn má'
+    // Bạn có thể thêm nhiều từ tục tĩu khác vào đây
+    
+];
 
 const BannedUser = require('./models/BannedUser');
 
