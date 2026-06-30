@@ -286,7 +286,38 @@ app.get('/api/messages', async (req, res) => {
         res.status(500).json({ message: 'Lỗi lấy tin nhắn' });
     }
 });
+// API: Ghim tin nhắn (Chỉ Admin mới có quyền)
+app.put('/api/messages/:id/pin', verifyToken, async (req, res) => {
+    try {
+        // Hủy ghim tất cả các tin nhắn cũ trước (Mỗi lần chỉ ghim 1 tin)
+        await Message.updateMany({}, { isPinned: false });
+        
+        // Ghim tin nhắn mới
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: 'Không tìm thấy tin nhắn!' });
+        
+        message.isPinned = true;
+        await message.save();
+        
+        res.json({ message: 'Đã ghim tin nhắn!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi ghim tin nhắn' });
+    }
+});
 
+// API: Bỏ ghim tin nhắn
+app.put('/api/messages/:id/unpin', verifyToken, async (req, res) => {
+    try {
+        const message = await Message.findById(req.params.id);
+        if (message) {
+            message.isPinned = false;
+            await message.save();
+        }
+        res.json({ message: 'Đã bỏ ghim!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi bỏ ghim' });
+    }
+});
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Bản nâng cấp Database)
 // API: Gửi tin nhắn có kèm trạm kiểm duyệt (Chặn theo IP)
