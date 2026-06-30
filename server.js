@@ -97,7 +97,7 @@ app.get('/api/seed', async (req, res) => {
 app.get('/api/setup-admin', async (req, res) => {
     try {
         // Kiểm tra xem đã có admin chưa
-        const adminExists = await User.findOne({ username: 'admin' });
+        const adminExists = await User.findOne({ username: 'VinhNg' });
         if (adminExists) return res.status(400).json({ message: 'Tài khoản admin đã tồn tại!' });
 
         // Mã hóa mật khẩu (Ví dụ mật khẩu là: 123456)
@@ -106,12 +106,12 @@ app.get('/api/setup-admin', async (req, res) => {
 
         // Tạo tài khoản mới lưu vào Database
         const admin = new User({
-            username: 'Vinh Ng',
+            username: 'VinhNg',
             password: hashedPassword
         });
         
         await admin.save();
-        res.json({ message: 'Tạo tài khoản Admin thành công! Tài khoản: Vinh Ng | Mật khẩu: ToThuongCau' });
+        res.json({ message: 'Tạo tài khoản Admin thành công! Tài khoản: VinhNg | Mật khẩu: ToThuongCau' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Lỗi khi tạo tài khoản' });
