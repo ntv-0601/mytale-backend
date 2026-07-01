@@ -178,9 +178,9 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ message: 'Lỗi server' });
     }
 });
-// --- KHU VỰC DÀNH RIÊNG CHO QTV ---
 
-// 1. QTV Đăng ký (Tự động cấp phát tên QTV1, QTV2...)
+
+
 // --- KHU VỰC DÀNH RIÊNG CHO QTV ---
 
 // 1. QTV Đăng ký (Tự động cấp phát tên QTV1, QTV2...)
@@ -189,8 +189,8 @@ app.post('/api/qtv/register', async (req, res) => {
         const { password } = req.body;
         if (!password) return res.status(400).json({ message: 'Vui lòng nhập mật khẩu!' });
 
-        // Đếm xem đã có bao nhiêu QTV để cấp số tiếp theo
-        const qtvCount = await User.countDocuments({ role: 'qtv' });
+        // ĐÃ FIX: Đếm xem đã có bao nhiêu QTV dựa vào TÊN tài khoản (bắt đầu bằng chữ QTV)
+        const qtvCount = await User.countDocuments({ username: /^QTV/ });
         const newUsername = `QTV${qtvCount + 1}`;
 
         const salt = await bcrypt.genSalt(10);
@@ -198,13 +198,14 @@ app.post('/api/qtv/register', async (req, res) => {
 
         const newQtv = new User({
             username: newUsername,
-            password: hashedPassword,
-            role: 'qtv' // Đánh dấu đây là QTV
+            password: hashedPassword
+            // Đã bỏ trường role để tránh bị Mongoose từ chối lưu dữ liệu
         });
         await newQtv.save();
 
         res.json({ message: `Đăng ký thành công! Tài khoản của bạn là: ${newUsername}` });
     } catch (error) {
+        console.error("Lỗi tạo QTV:", error);
         res.status(500).json({ message: 'Lỗi khi tạo tài khoản QTV' });
     }
 });
@@ -214,7 +215,11 @@ app.post('/api/qtv/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
-        if (!user || user.role !== 'qtv') return res.status(400).json({ message: 'Không tìm thấy QTV này!' });
+        
+        // ĐÃ FIX: Kiểm tra xem tài khoản có tồn tại và tên có bắt đầu bằng chữ "QTV" không
+        if (!user || !user.username.startsWith('QTV')) {
+            return res.status(400).json({ message: 'Không tìm thấy QTV này!' });
+        }
 
         const validPass = await bcrypt.compare(password, user.password);
         if (!validPass) return res.status(400).json({ message: 'Sai mật khẩu!' });
