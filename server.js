@@ -194,26 +194,69 @@ const verifyToken = (req, res, next) => {
         res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
     }
 };
-app.post('/api/stories', verifyToken, async (req, res) => {
+app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
     try {
-        // Tạo một cuốn truyện mới dựa trên dữ liệu gửi lên
-        const newStory = new Story({
-            title: req.body.title,
-            format: req.body.format,
-            author: req.body.author,
-            desc: req.body.desc,
-            tags: req.body.tags,
-            image: req.body.image, // Tạm thời dùng link ảnh trực tiếp
-            chaptersData: [] // Lúc mới tạo chưa có chương nào
-        });
+        const storyId = req.params.id;
+        // BỔ SUNG: Lấy thêm biến hasPoll và pollData từ giao diện gửi lên
+        const { title, content, images, hasPoll, pollData } = req.body; 
 
-        // Lưu vào Database
-        const savedStory = await newStory.save();
-        res.json({ message: 'Đăng truyện thành công!', story: savedStory });
-        
+        const story = await Story.findById(storyId);
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy bộ truyện này!' });
+        }
+
+        const newChapter = {
+            title: title,
+            content: content || "", 
+            images: images || [],
+            // BỔ SUNG: Lưu dữ liệu bình chọn vào Database
+            hasPoll: hasPoll || false,
+            pollData: pollData || { question: "", options: [] }
+        };
+
+        story.chaptersData.push(newChapter);
+        await story.save();
+
+        res.json({ message: 'Thêm chương mới thành công!' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Lỗi khi lưu truyện mới' });
+        res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
+    }
+});
+// API: Xử lý lượt bình chọn cho chương truyện
+app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
+    try {
+        const { storyId, chapterId } = req.params;
+        const { optionIndex } = req.body; // Vị trí của lựa chọn (0, 1, 2)
+
+        const story = await Story.findById(storyId);
+        
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        }
+
+        // Tìm chương tương ứng trong mảng chaptersData
+        const chapter = story.chaptersData.id(chapterId); 
+        
+        if (!chapter) {
+            return res.status(404).json({ message: 'Không tìm thấy chương' });
+        }
+
+        // Kiểm tra xem chương này có bình chọn không và người dùng có chọn đúng lựa chọn hợp lệ không
+        if (chapter.hasPoll && chapter.pollData && chapter.pollData.options[optionIndex]) {
+            // Tăng số lượt bình chọn của lựa chọn đó lên 1
+            chapter.pollData.options[optionIndex].votes += 1;
+            
+            // Lưu lại vào Database
+            await story.save();
+            res.status(200).json({ message: 'Bình chọn thành công', updatedPoll: chapter.pollData });
+        } else {
+            res.status(400).json({ message: 'Dữ liệu bình chọn không hợp lệ' });
+        }
+
+    } catch (error) {
+        console.error("Lỗi bình chọn:", error);
+        res.status(500).json({ message: 'Lỗi máy chủ' });
     }
 });
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)

@@ -4,7 +4,18 @@ const mongoose = require('mongoose');
 const chapterSchema = new mongoose.Schema({
     title: { type: String, required: true }, // Ví dụ: "Chương 1: Lần Đầu Gặp Gỡ"
     content: { type: String },               // Chứa văn bản (cho truyện chữ)
-    images: [{ type: String }]               // Chứa các link ảnh (cho truyện tranh)
+    images: [{ type: String }],              // Chứa các link ảnh (cho truyện tranh)
+    
+    // --- BƯỚC 1: THÊM TÍNH NĂNG BÌNH CHỌN VÀO ĐÂY ---
+    hasPoll: { type: Boolean, default: false },
+    pollData: {
+        question: { type: String, default: "" },
+        options: [{
+            text: String,
+            votes: { type: Number, default: 0 }
+        }]
+    }
+    // ------------------------------------------------
 });
 
 // Định nghĩa cấu trúc cho 1 Bộ truyện
@@ -22,6 +33,7 @@ const storySchema = new mongoose.Schema({
 }, { timestamps: true }); // Tự động tạo thời gian đăng truyện (createdAt)
 
 module.exports = mongoose.model('Story', storySchema);
+
 const CommentSchema = new mongoose.Schema({
     storyId: String,       // ID của bộ truyện
     chapterIndex: Number,  // Vị trí chương. Nếu là -1 thì tức là bình luận ở trang chi tiết truyện
