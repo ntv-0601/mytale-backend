@@ -396,6 +396,26 @@ app.delete('/api/messages/:id', async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi xóa tin nhắn' });
     }
 });
+// API: Kiểm tra trạng thái Ban của người dùng hiện tại (Dùng để khóa giao diện)
+app.get('/api/check-ban', async (req, res) => {
+    try {
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const uuid = req.query.uuid;
+        
+        // Kiểm tra xem IP hoặc UUID này có trong Sổ đen không
+        const isBanned = await BannedUser.findOne({
+            $or: [
+                { ipAddress: clientIp },
+                { ipAddress: uuid }
+            ]
+        });
+        
+        // Trả về true nếu bị cấm, false nếu an toàn
+        res.json({ isBanned: !!isBanned });
+    } catch (error) {
+        res.status(500).json({ isBanned: false });
+    }
+});
 app.post('/api/messages', async (req, res) => {
     try {
         const { uuid, content, replyToId, replyToText } = req.body;
