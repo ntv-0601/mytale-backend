@@ -181,13 +181,16 @@ app.post('/api/login', async (req, res) => {
 // --- KHU VỰC DÀNH RIÊNG CHO QTV ---
 
 // 1. QTV Đăng ký (Tự động cấp phát tên QTV1, QTV2...)
+// --- KHU VỰC DÀNH RIÊNG CHO QTV ---
+
+// 1. QTV Đăng ký (Tự động cấp phát tên QTV1, QTV2...)
 app.post('/api/qtv/register', async (req, res) => {
     try {
         const { password } = req.body;
         if (!password) return res.status(400).json({ message: 'Vui lòng nhập mật khẩu!' });
 
         // Đếm xem đã có bao nhiêu QTV để cấp số tiếp theo
-        const qtvCount = await User.countDocuments({ username: /^QTV/ });
+        const qtvCount = await User.countDocuments({ role: 'qtv' });
         const newUsername = `QTV${qtvCount + 1}`;
 
         const salt = await bcrypt.genSalt(10);
@@ -211,7 +214,7 @@ app.post('/api/qtv/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
-        if (!user) return res.status(400).json({ message: 'Không tìm thấy QTV này!' });
+        if (!user || user.role !== 'qtv') return res.status(400).json({ message: 'Không tìm thấy QTV này!' });
 
         const validPass = await bcrypt.compare(password, user.password);
         if (!validPass) return res.status(400).json({ message: 'Sai mật khẩu!' });
