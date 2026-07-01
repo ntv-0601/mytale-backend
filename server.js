@@ -12,11 +12,15 @@ const Report = require('./models/Report');
 const app = express();
 const multer = require('multer');
 
-
+const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/ig;
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-
+const LinkSpammerSchema = new mongoose.Schema({
+    ipAddress: String,
+    count: { type: Number, default: 0 }
+});
+const LinkSpammer = mongoose.model('LinkSpammer', LinkSpammerSchema);
 // Lấy chìa khóa từ file bảo mật .env
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -396,7 +400,7 @@ app.post('/api/messages', async (req, res) => {
     try {
         const { uuid, content, replyToId, replyToText } = req.body;
 
-        // Thuật toán bóc tách IP thật của người gửi (Kể cả khi dùng Render)
+        // Thuật toán bóc tách IP thật của người gửi
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
         // 1. Kiểm tra Sổ đen xem IP này có tiền án không
@@ -413,11 +417,37 @@ app.post('/api/messages', async (req, res) => {
             // Tống cổ địa chỉ IP này vào Sổ đen
             const newBan = new BannedUser({ ipAddress: clientIp });
             await newBan.save();
-            
             return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Đường truyền của bạn đã bị cấm.' });
         }
 
-        // 3. Nếu an toàn, cho phép lưu vào Database
+        // 3. TÍNH NĂNG MỚI: Kiểm tra và chặn đường link
+        if (urlRegex.test(content)) {
+            // Tìm IP này trong bảng theo dõi spam link
+            let spammer = await LinkSpammer.findOne({ ipAddress: clientIp });
+            
+            if (!spammer) {
+                // Nếu vi phạm lần đầu, tạo hồ sơ mới với count = 1
+                spammer = new LinkSpammer({ ipAddress: clientIp, count: 1 });
+            } else {
+                // Nếu đã có hồ sơ, tăng số lần vi phạm lên 1
+                spammer.count += 1;
+            }
+            
+            await spammer.save();
+
+            // Xử lý hình phạt dựa trên số lần vi phạm
+            if (spammer.count > 2) {
+                // Quá 2 lần (lần thứ 3 trở đi): Cấm vĩnh viễn
+                const newBan = new BannedUser({ ipAddress: clientIp });
+                await newBan.save();
+                return res.status(403).json({ message: 'Bạn đã cố tình gửi đường link quá số lần quy định! Thiết bị đã bị cấm.' });
+            } else {
+                // Lần 1 và 2: Trả về mã lỗi 400 để cảnh báo (Frontend sẽ hiện Alert nhưng chưa khóa)
+                return res.status(400).json({ message: `Không được phép gửi đường link trong Góc Tâm Sự! (Cảnh báo: Vi phạm ${spammer.count}/2 lần)` });
+            }
+        }
+
+        // 4. Nếu an toàn, cho phép lưu vào Database
         const newMessage = new Message({ uuid, content, replyToId, replyToText });
         await newMessage.save();
 
