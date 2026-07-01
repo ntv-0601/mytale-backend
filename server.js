@@ -16,7 +16,8 @@ const multer = require('multer');
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-
+// Sổ theo dõi số lần vi phạm gửi link của từng người
+const linkViolations = {};
 // Lấy chìa khóa từ file bảo mật .env
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -272,7 +273,30 @@ app.delete('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req,
     }
 });
 // --- KHU VỰC CỘNG ĐỒNG ẨN DANH ---
+app.post('/api/messages', async (req, res) => {
+    try {
+        const { uuid, content, replyToId, replyToText } = req.body;
 
+        // 1. THUẬT TOÁN QUÉT LINK
+        // Nhận diện HTTP, HTTPS, WWW, .com, .vn, .net...
+        const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|vn|net|org|edu))/gi;
+        
+        if (linkRegex.test(content)) {
+            // Ghi sổ vi phạm
+            linkViolations[uuid] = (linkViolations[uuid] || 0) + 1;
+            
+            if (linkViolations[uuid] >= 2) {
+                // Vi phạm lần 2 -> Khóa mõm vĩnh viễn!
+                const newBan = new BannedUser({ ipAddress: uuid });
+                await newBan.save();
+                return res.status(403).json({ message: 'BẠN ĐÃ BỊ KHÓA VĨNH VIỄN DO RẢI LINK RÁC QUÁ NHIỀU LẦN!' });
+            }
+            
+            // Vi phạm lần 1 -> Cảnh cáo
+            return res.status(400).json({ message: `CẢNH BÁO LẦN ${linkViolations[uuid]}/2: Hệ thống nghiêm cấm gửi đường link vào nhóm!` });
+        }
+
+        // ... (Đoạn code kiểm tra từ bậy badWords cũ của bạn giữ nguyên ở dưới này) ...
 // 1. Danh sách từ cấm (Bạn hãy bổ sung thêm các từ tục tĩu, nhạy cảm vào đây)
 const badWords = [
     ' lồn', 'lồn ', ' cặc', 'cặc ', ' đụ', 'đụ ', 'địt', 
