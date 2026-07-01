@@ -46,7 +46,17 @@ app.use(express.json()); // Giúp server đọc được dữ liệu dạng JSON
 
 // --- PHẦN KẾT NỐI MONGODB (RẤT QUAN TRỌNG) ---
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('🟢 Đã kết nối thành công với MongoDB!'))
+    .then(async () => {
+        console.log('🟢 Đã kết nối thành công với MongoDB!');
+        
+        // CHỮA BỆNH E11000: Yêu cầu Database xóa bỏ luật chống trùng lặp cũ
+        try {
+            await mongoose.connection.collection('bannedusers').dropIndex('uuid_1');
+            console.log('🔧 Đã dọn dẹp luật E11000 thành công!');
+        } catch (error) {
+            // Nếu Database không có luật này thì bỏ qua không sao cả
+        }
+    })
     .catch((err) => console.error('🔴 Lỗi kết nối Database:', err));
 
 // Tạo một API kiểm tra (Endpoint)
