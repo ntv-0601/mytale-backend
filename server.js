@@ -9,6 +9,11 @@ const Story = require('./models/Story');
 const Message = require('./models/Message');
 const Report = require('./models/Report');
 const Comment = require('./models/Comment');
+const SystemConfigSchema = new mongoose.Schema({
+    key: { type: String, required: true },
+    value: { type: [String], default: [] }
+});
+const SystemConfig = mongoose.model('SystemConfig', SystemConfigSchema);
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
@@ -172,6 +177,74 @@ app.post('/api/login', async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Lỗi server' });
     }
+});
+// --- KHU VỰC DÀNH RIÊNG CHO QTV ---
+
+// 1. QTV Đăng ký (Tự động cấp phát tên QTV1, QTV2...)
+app.post('/api/qtv/register', async (req, res) => {
+    try {
+        const { password } = req.body;
+        if (!password) return res.status(400).json({ message: 'Vui lòng nhập mật khẩu!' });
+
+        // Đếm xem đã có bao nhiêu QTV để cấp số tiếp theo
+        const qtvCount = await User.countDocuments({ username: /^QTV/ });
+        const newUsername = `QTV${qtvCount + 1}`;
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newQtv = new User({
+            username: newUsername,
+            password: hashedPassword,
+            role: 'qtv' // Đánh dấu đây là QTV
+        });
+        await newQtv.save();
+
+        res.json({ message: `Đăng ký thành công! Tài khoản của bạn là: ${newUsername}` });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tạo tài khoản QTV' });
+    }
+});
+
+// 2. QTV Đăng nhập
+app.post('/api/qtv/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if (!user) return res.status(400).json({ message: 'Không tìm thấy QTV này!' });
+
+        const validPass = await bcrypt.compare(password, user.password);
+        if (!validPass) return res.status(400).json({ message: 'Sai mật khẩu!' });
+
+        // Cấp thẻ có chứa cả tên để Frontend nhận diện
+        const token = jwt.sign({ _id: user._id, role: 'qtv', username: user.username }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        
+        res.json({ message: 'Đăng nhập thành công!', token: token, username: user.username });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server' });
+    }
+});
+
+// 3. API Lấy dòng chữ thông báo
+app.get('/api/marquee', async (req, res) => {
+    try {
+        let config = await SystemConfig.findOne({ key: 'marquee' });
+        if (!config) {
+            // Nếu chưa có, tạo mặc định
+            config = new SystemConfig({ key: 'marquee', value: ["Chào mừng đến với thư viện thanh xuân My Tale!", "Đừng quên ghé Góc Tâm Sự nhé!"] });
+            await config.save();
+        }
+        res.json(config.value);
+    } catch (error) { res.status(500).json([]); }
+});
+
+// 4. API Cập nhật dòng chữ thông báo (QTV hoặc Admin)
+app.put('/api/marquee', verifyToken, async (req, res) => {
+    try {
+        const { texts } = req.body; // texts là một mảng các câu
+        await SystemConfig.findOneAndUpdate({ key: 'marquee' }, { value: texts }, { upsert: true });
+        res.json({ message: 'Đã cập nhật dòng chữ thông báo!' });
+    } catch (error) { res.status(500).json({ message: 'Lỗi cập nhật' }); }
 });
     // Middleware: Người kiểm duyệt Token
 const verifyToken = (req, res, next) => {
@@ -533,6 +606,9 @@ app.post('/api/reports/:id/resolve', verifyToken, async (req, res) => {
 // 4. Admin Gỡ Ban (Unban) thủ công
 app.post('/api/ban', verifyToken, async (req, res) => {
     try {
+        if (target.toLowerCase() === 'vinhng') {
+            return res.status(403).json({ message: 'Náo loạn! Bạn không thể khóa tài khoản của Admin tối cao!' });
+        }
         const { target } = req.body; // Lấy dữ liệu UUID hoặc IP từ giao diện gửi lên
         if (!target) return res.status(400).json({ message: 'Vui lòng nhập định danh cần chặn!' });
         
