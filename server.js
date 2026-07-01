@@ -403,10 +403,16 @@ app.post('/api/messages', async (req, res) => {
         // Thuật toán bóc tách IP thật của người gửi
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-        // 1. Kiểm tra Sổ đen xem IP này có tiền án không
-        const isBanned = await BannedUser.findOne({ ipAddress: clientIp });
+        // 1. SỬA LỖI TẠI ĐÂY: Kiểm tra xem IP hoặc UUID này có nằm trong Sổ đen không
+        const isBanned = await BannedUser.findOne({
+            $or: [
+                { ipAddress: clientIp }, // Khóa theo IP (khi hệ thống tự động quét từ cấm/spam link)
+                { ipAddress: uuid }      // Khóa theo UUID (khi Admin bấm Ban thủ công từ giao diện)
+            ]
+        });
+
         if (isBanned) {
-            return res.status(403).json({ message: 'Đường truyền mạng của bạn đã bị chặn vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
+            return res.status(403).json({ message: 'Thiết bị hoặc tài khoản của bạn đã bị chặn vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
         }
 
         // 2. Quét từ ngữ vi phạm
@@ -420,29 +426,21 @@ app.post('/api/messages', async (req, res) => {
             return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Đường truyền của bạn đã bị cấm.' });
         }
 
-        // 3. TÍNH NĂNG MỚI: Kiểm tra và chặn đường link
+        // 3. Kiểm tra và chặn đường link (Giữ nguyên phần code đã thêm ở bước trước)
         if (urlRegex.test(content)) {
-            // Tìm IP này trong bảng theo dõi spam link
             let spammer = await LinkSpammer.findOne({ ipAddress: clientIp });
-            
             if (!spammer) {
-                // Nếu vi phạm lần đầu, tạo hồ sơ mới với count = 1
                 spammer = new LinkSpammer({ ipAddress: clientIp, count: 1 });
             } else {
-                // Nếu đã có hồ sơ, tăng số lần vi phạm lên 1
                 spammer.count += 1;
             }
-            
             await spammer.save();
 
-            // Xử lý hình phạt dựa trên số lần vi phạm
             if (spammer.count > 2) {
-                // Quá 2 lần (lần thứ 3 trở đi): Cấm vĩnh viễn
                 const newBan = new BannedUser({ ipAddress: clientIp });
                 await newBan.save();
                 return res.status(403).json({ message: 'Bạn đã cố tình gửi đường link quá số lần quy định! Thiết bị đã bị cấm.' });
             } else {
-                // Lần 1 và 2: Trả về mã lỗi 400 để cảnh báo (Frontend sẽ hiện Alert nhưng chưa khóa)
                 return res.status(400).json({ message: `Không được phép gửi đường link trong Góc Tâm Sự! (Cảnh báo: Vi phạm ${spammer.count}/2 lần)` });
             }
         }
