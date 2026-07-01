@@ -549,13 +549,24 @@ app.post('/api/ban', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
+// 4. Admin Gỡ Ban (Unban) thủ công
 app.post('/api/unban', verifyToken, async (req, res) => {
     try {
         const { target } = req.body; // Có thể là IP hoặc UUID
-        await BannedUser.findOneAndDelete({ ipAddress: target });
-        res.json({ message: `Đã ân xá thành công cho: ${target}` });
+        
+        // SỬA LỖI Ở ĐÂY: Dùng deleteMany để xóa TẤT CẢ các lệnh cấm đang xếp chồng lên nhau
+        const result = await BannedUser.deleteMany({ ipAddress: target });
+        
+        // Kiểm tra xem có tìm thấy ai để xóa không
+        if (result.deletedCount === 0) {
+            return res.status(400).json({ message: `Không tìm thấy hồ sơ bị cấm nào của: ${target}` });
+        }
+
+        res.json({ message: `Đã ân xá thành công cho: ${target} (Gỡ ${result.deletedCount} lớp khóa)` });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi ân xá' });
+        console.error("Lỗi ân xá:", error);
+        // In lỗi chi tiết ra màn hình nếu có
+        res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
 // Định nghĩa cổng chạy server
