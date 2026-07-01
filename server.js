@@ -569,6 +569,35 @@ app.post('/api/unban', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
+app.get('/api/comments/:storyId', async (req, res) => {
+    try {
+        const comments = await Comment.find({ storyId: req.params.storyId }).sort({ createdAt: -1 });
+        res.json(comments);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tải bình luận' });
+    }
+});
+
+// API: Gửi bình luận mới
+app.post('/api/comments', async (req, res) => {
+    try {
+        const newComment = new Comment(req.body);
+        await newComment.save();
+        res.json(newComment);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi gửi bình luận' });
+    }
+});
+
+// API: Admin xóa bình luận
+app.delete('/api/comments/:id', verifyToken, async (req, res) => {
+    try {
+        await Comment.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Đã xóa bình luận!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xóa bình luận' });
+    }
+});
 // Định nghĩa cổng chạy server
 const PORT = process.env.PORT || 5000;
 
