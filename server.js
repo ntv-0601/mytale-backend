@@ -250,7 +250,7 @@ app.put('/api/marquee', verifyToken, async (req, res) => {
     } catch (error) { res.status(500).json({ message: 'Lỗi cập nhật' }); }
 });
     // Middleware: Người kiểm duyệt Token
-const verifyToken = (req, res, next) => {
+function verifyToken = (req, res, next) => {
     // Lấy token từ header của request
     const token = req.header('Authorization');
     
@@ -609,11 +609,13 @@ app.post('/api/reports/:id/resolve', verifyToken, async (req, res) => {
 // 4. Admin Gỡ Ban (Unban) thủ công
 app.post('/api/ban', verifyToken, async (req, res) => {
     try {
+        const { target } = req.body; // PHẢI ĐƯA DÒNG NÀY LÊN TRÊN CÙNG
+        if (!target) return res.status(400).json({ message: 'Vui lòng nhập định danh cần chặn!' });
+
+        // Sau khi có target rồi mới được mang đi kiểm tra
         if (target.toLowerCase() === 'vinhng') {
             return res.status(403).json({ message: 'Náo loạn! Bạn không thể khóa tài khoản của Admin tối cao!' });
         }
-        const { target } = req.body; // Lấy dữ liệu UUID hoặc IP từ giao diện gửi lên
-        if (!target) return res.status(400).json({ message: 'Vui lòng nhập định danh cần chặn!' });
         
         // Kiểm tra xem định danh này đã bị chặn từ trước chưa để tránh trùng lặp dữ liệu
         const existingBan = await BannedUser.findOne({ ipAddress: target });
@@ -626,7 +628,6 @@ app.post('/api/ban', verifyToken, async (req, res) => {
         res.json({ message: `Đã chặn vĩnh viễn thành công định danh: ${target}` });
     } catch (error) {
         console.error("Lỗi chặn thủ công:", error);
-        // Bắt máy chủ in thẳng lỗi hệ thống ra màn hình Frontend
         res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
