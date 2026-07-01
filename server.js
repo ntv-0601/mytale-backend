@@ -535,7 +535,8 @@ app.post('/api/ban', verifyToken, async (req, res) => {
         res.json({ message: `Đã chặn vĩnh viễn thành công định danh: ${target}` });
     } catch (error) {
         console.error("Lỗi chặn thủ công:", error);
-        res.status(500).json({ message: 'Lỗi khi thực hiện chặn thủ công từ Server.' });
+        // Bắt máy chủ in thẳng lỗi hệ thống ra màn hình Frontend
+        res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
 app.post('/api/unban', verifyToken, async (req, res) => {
