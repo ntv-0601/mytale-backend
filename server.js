@@ -223,42 +223,7 @@ app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
     }
 });
-// API: Xử lý lượt bình chọn cho chương truyện
-app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
-    try {
-        const { storyId, chapterId } = req.params;
-        const { optionIndex } = req.body; // Vị trí của lựa chọn (0, 1, 2)
 
-        const story = await Story.findById(storyId);
-        
-        if (!story) {
-            return res.status(404).json({ message: 'Không tìm thấy truyện' });
-        }
-
-        // Tìm chương tương ứng trong mảng chaptersData
-        const chapter = story.chaptersData.id(chapterId); 
-        
-        if (!chapter) {
-            return res.status(404).json({ message: 'Không tìm thấy chương' });
-        }
-
-        // Kiểm tra xem chương này có bình chọn không và người dùng có chọn đúng lựa chọn hợp lệ không
-        if (chapter.hasPoll && chapter.pollData && chapter.pollData.options[optionIndex]) {
-            // Tăng số lượt bình chọn của lựa chọn đó lên 1
-            chapter.pollData.options[optionIndex].votes += 1;
-            
-            // Lưu lại vào Database
-            await story.save();
-            res.status(200).json({ message: 'Bình chọn thành công', updatedPoll: chapter.pollData });
-        } else {
-            res.status(400).json({ message: 'Dữ liệu bình chọn không hợp lệ' });
-        }
-
-    } catch (error) {
-        console.error("Lỗi bình chọn:", error);
-        res.status(500).json({ message: 'Lỗi máy chủ' });
-    }
-});
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
 // API: Nhận file ảnh từ máy tính (Tối đa 20 ảnh 1 lúc)
@@ -275,32 +240,6 @@ app.post('/api/upload', verifyToken, upload.array('images', 20), (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Lỗi khi tải ảnh lên Cloudinary' });
-    }
-});
-app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
-    try {
-        const storyId = req.params.id;
-        // Lấy thêm biến 'images' từ req.body
-        const { title, content, images } = req.body; 
-
-        const story = await Story.findById(storyId);
-        if (!story) {
-            return res.status(404).json({ message: 'Không tìm thấy bộ truyện này!' });
-        }
-
-        const newChapter = {
-            title: title,
-            content: content || "", // Nếu không có nội dung chữ thì để trống
-            images: images || []    // Nếu có danh sách ảnh thì lưu vào, không thì để mảng rỗng
-        };
-
-        story.chaptersData.push(newChapter);
-        await story.save();
-
-        res.json({ message: 'Thêm chương mới thành công!' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
     }
 });
 // API: Xóa một bộ truyện (Bắt buộc có Token)
