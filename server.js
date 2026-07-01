@@ -519,6 +519,25 @@ app.post('/api/reports/:id/resolve', verifyToken, async (req, res) => {
 });
 
 // 4. Admin Gỡ Ban (Unban) thủ công
+app.post('/api/ban', verifyToken, async (req, res) => {
+    try {
+        const { target } = req.body; // Lấy dữ liệu UUID hoặc IP từ giao diện gửi lên
+        if (!target) return res.status(400).json({ message: 'Vui lòng nhập định danh cần chặn!' });
+        
+        // Kiểm tra xem định danh này đã bị chặn từ trước chưa để tránh trùng lặp dữ liệu
+        const existingBan = await BannedUser.findOne({ ipAddress: target });
+        if (existingBan) return res.status(400).json({ message: 'Định danh này đã bị chặn từ trước rồi!' });
+
+        // Tiến hành lưu định danh vào danh sách đen công khai
+        const newBan = new BannedUser({ ipAddress: target });
+        await newBan.save();
+        
+        res.json({ message: `Đã chặn vĩnh viễn thành công định danh: ${target}` });
+    } catch (error) {
+        console.error("Lỗi chặn thủ công:", error);
+        res.status(500).json({ message: 'Lỗi khi thực hiện chặn thủ công từ Server.' });
+    }
+});
 app.post('/api/unban', verifyToken, async (req, res) => {
     try {
         const { target } = req.body; // Có thể là IP hoặc UUID
