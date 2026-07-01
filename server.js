@@ -232,19 +232,33 @@ app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
 // API: Nhận file ảnh từ máy tính (Tối đa 20 ảnh 1 lúc)
-app.post('/api/upload', verifyToken, upload.array('images', 20), (req, res) => {
+// API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
+app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ message: 'Không có file nào được tải lên!' });
+        const storyId = req.params.id;
+        // Nhận đầy đủ dữ liệu từ Admin gửi lên (Bao gồm cả bình chọn)
+        const { title, content, images, hasPoll, pollData } = req.body; 
+
+        const story = await Story.findById(storyId);
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy bộ truyện này!' });
         }
 
-        // Với Cloudinary, đường link vĩnh viễn đã nằm sẵn trong thuộc tính 'path'
-        const fileUrls = req.files.map(file => file.path);
-        
-        res.json({ urls: fileUrls });
+        const newChapter = {
+            title: title,
+            content: content || "", 
+            images: images || [],
+            hasPoll: hasPoll || false,
+            pollData: pollData || { question: "", options: [] }
+        };
+
+        story.chaptersData.push(newChapter);
+        await story.save();
+
+        res.json({ message: 'Thêm chương mới thành công!' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Lỗi khi tải ảnh lên Cloudinary' });
+        res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
     }
 });
 // API: Xóa một bộ truyện (Bắt buộc có Token)
