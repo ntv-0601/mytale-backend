@@ -194,33 +194,38 @@ const verifyToken = (req, res, next) => {
         res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
     }
 };
-app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
+// API: Xử lý lượt bình chọn cho chương truyện
+app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
     try {
-        const storyId = req.params.id;
-        // BỔ SUNG: Lấy thêm biến hasPoll và pollData từ giao diện gửi lên
-        const { title, content, images, hasPoll, pollData } = req.body; 
+        const { storyId, chapterId } = req.params;
+        const { optionIndex } = req.body; 
 
         const story = await Story.findById(storyId);
         if (!story) {
-            return res.status(404).json({ message: 'Không tìm thấy bộ truyện này!' });
+            return res.status(404).json({ message: 'Không tìm thấy truyện' });
         }
 
-        const newChapter = {
-            title: title,
-            content: content || "", 
-            images: images || [],
-            // BỔ SUNG: Lưu dữ liệu bình chọn vào Database
-            hasPoll: hasPoll || false,
-            pollData: pollData || { question: "", options: [] }
-        };
+        // ĐÃ FIX: Dùng vòng lặp find thay vì .id() để tránh lỗi vặt của Mongoose
+        const chapter = story.chaptersData.find(chap => chap._id.toString() === chapterId.toString());
+        
+        if (!chapter) {
+            return res.status(404).json({ message: 'Không tìm thấy chương truyện này trong Database' });
+        }
 
-        story.chaptersData.push(newChapter);
-        await story.save();
+        if (chapter.hasPoll && chapter.pollData && chapter.pollData.options[optionIndex]) {
+            // Tăng số lượt bình chọn
+            chapter.pollData.options[optionIndex].votes += 1;
+            
+            // Lưu lại
+            await story.save();
+            res.status(200).json({ message: 'Bình chọn thành công' });
+        } else {
+            res.status(400).json({ message: 'Dữ liệu bình chọn không hợp lệ' });
+        }
 
-        res.json({ message: 'Thêm chương mới thành công!' });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
+        console.error("Lỗi bình chọn:", error);
+        res.status(500).json({ message: 'Lỗi máy chủ Backend: ' + error.message });
     }
 });
 
