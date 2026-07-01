@@ -33,11 +33,3 @@ const storySchema = new mongoose.Schema({
 }, { timestamps: true }); // Tự động tạo thời gian đăng truyện (createdAt)
 
 module.exports = mongoose.model('Story', storySchema);
-
-const CommentSchema = new mongoose.Schema({
-    storyId: String,       // ID của bộ truyện
-    chapterIndex: Number,  // Vị trí chương. Nếu là -1 thì tức là bình luận ở trang chi tiết truyện
-    uuid: String,          // Mã định danh ẩn danh của người bình luận
-    content: String        // Nội dung
-}, { timestamps: true });
-const Comment = mongoose.model('Comment', CommentSchema);
