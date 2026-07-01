@@ -11,7 +11,7 @@ const Report = require('./models/Report');
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
-
+const Comment = require('./models/Comment');
 const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/ig;
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
 const cloudinary = require('cloudinary').v2;
@@ -556,8 +556,12 @@ app.post('/api/unban', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi chi tiết từ Server: ' + (error.message || error.toString()) });
     }
 });
+// --- BẢN VÁ: HỆ THỐNG BÌNH LUẬN TRUYỆN ---
+// API: Lấy bình luận
 app.get('/api/comments/:storyId', async (req, res) => {
     try {
+        const mongoose = require('mongoose');
+        const Comment = mongoose.model('Comment'); // Lấy trực tiếp từ bộ nhớ Mongoose
         const comments = await Comment.find({ storyId: req.params.storyId }).sort({ createdAt: -1 });
         res.json(comments);
     } catch (error) {
@@ -568,6 +572,8 @@ app.get('/api/comments/:storyId', async (req, res) => {
 // API: Gửi bình luận mới
 app.post('/api/comments', async (req, res) => {
     try {
+        const mongoose = require('mongoose');
+        const Comment = mongoose.model('Comment');
         const newComment = new Comment(req.body);
         await newComment.save();
         res.json(newComment);
@@ -579,6 +585,8 @@ app.post('/api/comments', async (req, res) => {
 // API: Admin xóa bình luận
 app.delete('/api/comments/:id', verifyToken, async (req, res) => {
     try {
+        const mongoose = require('mongoose');
+        const Comment = mongoose.model('Comment');
         await Comment.findByIdAndDelete(req.params.id);
         res.json({ message: 'Đã xóa bình luận!' });
     } catch (error) {
