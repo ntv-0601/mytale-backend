@@ -250,7 +250,8 @@ app.put('/api/marquee', verifyToken, async (req, res) => {
     } catch (error) { res.status(500).json({ message: 'Lỗi cập nhật' }); }
 });
     // Middleware: Người kiểm duyệt Token
-function verifyToken = (req, res, next) => {
+// Middleware: Người kiểm duyệt Token
+function verifyToken(req, res, next) {
     // Lấy token từ header của request
     const token = req.header('Authorization');
     
@@ -270,7 +271,7 @@ function verifyToken = (req, res, next) => {
     } catch (err) {
         res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
     }
-};
+}
 // API: Xử lý lượt bình chọn cho chương truyện
 app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
     try {
