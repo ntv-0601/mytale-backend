@@ -11,14 +11,12 @@ const Report = require('./models/Report');
 // Khởi tạo ứng dụng Express
 const app = express();
 const multer = require('multer');
-// BẢO VỆ ADMIN: Hãy thay chuỗi này bằng mã UUID hiển thị trên máy tính của bạn (VD: 'anon_8y81yo')
-const MASTER_ADMIN_UUID = 'anon_8y8lyo';
+
 
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-// Sổ theo dõi số lần vi phạm gửi link của từng người
-const linkViolations = {};
+
 // Lấy chìa khóa từ file bảo mật .env
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -275,7 +273,6 @@ app.delete('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req,
 });
 // --- KHU VỰC CỘNG ĐỒNG ẨN DANH ---
 
-        // ... (Đoạn code kiểm tra từ bậy badWords cũ của bạn giữ nguyên ở dưới này) ...
 // 1. Danh sách từ cấm (Bạn hãy bổ sung thêm các từ tục tĩu, nhạy cảm vào đây)
 const badWords = [
     ' lồn', 'lồn ', ' cặc', 'cặc ', ' đụ', 'đụ ', 'địt', 
@@ -399,26 +396,33 @@ app.post('/api/messages', async (req, res) => {
     try {
         const { uuid, content, replyToId, replyToText } = req.body;
 
-        // 1. THUẬT TOÁN QUÉT LINK
-        // Nhận diện HTTP, HTTPS, WWW, .com, .vn, .net...
-        const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|vn|net|org|edu))/gi;
-        
-        if (linkRegex.test(content)) {
-            // Ghi sổ vi phạm
-            linkViolations[uuid] = (linkViolations[uuid] || 0) + 1;
-            
-            if (linkViolations[uuid] >= 2) {
-                // Vi phạm lần 2 -> Khóa mõm vĩnh viễn!
-                const newBan = new BannedUser({ ipAddress: uuid });
-                await newBan.save();
-                return res.status(403).json({ message: 'BẠN ĐÃ BỊ KHÓA VĨNH VIỄN DO RẢI LINK RÁC QUÁ NHIỀU LẦN!' });
-            }
-            
-            // Vi phạm lần 1 -> Cảnh cáo
-            return res.status(400).json({ message: `CẢNH BÁO LẦN ${linkViolations[uuid]}/2: Hệ thống nghiêm cấm gửi đường link vào nhóm!` });
+        // Thuật toán bóc tách IP thật của người gửi (Kể cả khi dùng Render)
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+        // 1. Kiểm tra Sổ đen xem IP này có tiền án không
+        const isBanned = await BannedUser.findOne({ ipAddress: clientIp });
+        if (isBanned) {
+            return res.status(403).json({ message: 'Đường truyền mạng của bạn đã bị chặn vĩnh viễn do vi phạm tiêu chuẩn cộng đồng!' });
         }
-    }
-    catch (error) {
+
+        // 2. Quét từ ngữ vi phạm
+        const lowerContent = content.toLowerCase();
+        const containsBadWord = badWords.some(word => lowerContent.includes(word.toLowerCase()));
+
+        if (containsBadWord) {
+            // Tống cổ địa chỉ IP này vào Sổ đen
+            const newBan = new BannedUser({ ipAddress: clientIp });
+            await newBan.save();
+            
+            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Đường truyền của bạn đã bị cấm.' });
+        }
+
+        // 3. Nếu an toàn, cho phép lưu vào Database
+        const newMessage = new Message({ uuid, content, replyToId, replyToText });
+        await newMessage.save();
+
+        res.json(newMessage);
+    } catch (error) {
         console.error("Lỗi server:", error);
         res.status(500).json({ message: 'Lỗi khi gửi tin nhắn' });
     }
@@ -426,34 +430,13 @@ app.post('/api/messages', async (req, res) => {
 // --- KHU VỰC ADMIN & TỐ CÁO ---
 
 // 1. Người dùng gửi Đơn tố cáo
-// 3. Admin hoặc QTV xử lý Đơn (Ban hoặc Bỏ qua)
-app.post('/api/reports/:id/resolve', async (req, res) => {
+app.post('/api/reports', async (req, res) => {
     try {
-        const { action, reportedUuid } = req.body; 
-        
-        // Kiểm tra quyền (phải có thẻ Admin hoặc Mod mới được vào)
-        const token = req.headers['authorization'];
-        if (!token) return res.status(403).json({ message: 'Không có quyền thực hiện!' });
-
-        const report = await Report.findById(req.params.id);
-        if (!report) return res.status(404).json({ message: 'Không tìm thấy đơn tố cáo!' });
-        
-        if (action === 'ban' && reportedUuid) {
-            // LÁ CHẮN BẢO VỆ ADMIN: Từ chối lệnh cấm nếu mục tiêu là Trùm Cuối
-            if (reportedUuid === MASTER_ADMIN_UUID) {
-                return res.status(403).json({ message: 'LỖI HỆ THỐNG: Bạn không thể khóa mõm Quản Trị Viên Tối Cao!' });
-            }
-
-            // Nếu không phải Admin, tiến hành khóa vĩnh viễn
-            const newBan = new BannedUser({ ipAddress: reportedUuid });
-            await newBan.save();
-        }
-        
-        report.status = 'resolved';
-        await report.save();
-        res.json({ message: 'Đã xử lý đơn tố cáo!' });
+        const newReport = new Report(req.body);
+        await newReport.save();
+        res.json({ message: 'Đã gửi tố cáo thành công! Cảm ơn bạn đã giúp cộng đồng trong sạch hơn.' });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi xử lý' });
+        res.status(500).json({ message: 'Lỗi khi gửi tố cáo' });
     }
 });
 
