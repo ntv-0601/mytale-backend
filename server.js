@@ -277,6 +277,27 @@ function verifyToken(req, res, next) {
         res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
     }
 }
+// 5. API Lấy Bảng Nội Quy
+app.get('/api/rules', async (req, res) => {
+    try {
+        let config = await SystemConfig.findOne({ key: 'rules' });
+        if (!config) {
+            // Nếu chưa có, tạo nội quy mặc định
+            config = new SystemConfig({ key: 'rules', value: ["Tôn trọng tác giả và các độc giả khác.", "Không spam, quảng cáo web khác.", "Cấm sử dụng ngôn từ tục tĩu."] });
+            await config.save();
+        }
+        res.json(config.value);
+    } catch (error) { res.status(500).json([]); }
+});
+
+// 6. API Cập nhật Bảng Nội Quy (Dành cho QTV/Admin)
+app.put('/api/rules', verifyToken, async (req, res) => {
+    try {
+        const { texts } = req.body;
+        await SystemConfig.findOneAndUpdate({ key: 'rules' }, { value: texts }, { upsert: true });
+        res.json({ message: 'Đã cập nhật Bảng nội quy!' });
+    } catch (error) { res.status(500).json({ message: 'Lỗi cập nhật' }); }
+});
 // API: Xử lý lượt bình chọn cho chương truyện
 app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
     try {
