@@ -49,7 +49,27 @@ app.use('/uploads', express.static('uploads'));
 // Cấu hình cơ bản
 app.use(cors()); // Cho phép gọi API chéo tên miền
 app.use(express.json()); // Giúp server đọc được dữ liệu dạng JSON
+function verifyToken(req, res, next) {
+    // Lấy token từ header của request
+    const token = req.header('Authorization');
+    
+    // Nếu không có token -> Đuổi về
+    if (!token) return res.status(401).json({ message: 'Từ chối truy cập! Yêu cầu đăng nhập.' });
 
+    try {
+        // Cắt bỏ chữ "Bearer " phía trước để lấy đúng mã token
+        const cleanToken = token.replace('Bearer ', '');
+        
+        // Dùng chìa khóa bí mật để giải mã
+        const verified = jwt.verify(cleanToken, process.env.JWT_SECRET);
+        req.user = verified;
+        
+        // Cho phép đi tiếp vào API bên trong
+        next(); 
+    } catch (err) {
+        res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
+    }
+}
 // --- PHẦN KẾT NỐI MONGODB (RẤT QUAN TRỌNG) ---
 mongoose.connect(process.env.MONGODB_URI)
     .then(async () => {
@@ -255,28 +275,7 @@ app.put('/api/marquee', verifyToken, async (req, res) => {
     } catch (error) { res.status(500).json({ message: 'Lỗi cập nhật' }); }
 });
     // Middleware: Người kiểm duyệt Token
-// Middleware: Người kiểm duyệt Token
-function verifyToken(req, res, next) {
-    // Lấy token từ header của request
-    const token = req.header('Authorization');
-    
-    // Nếu không có token -> Đuổi về
-    if (!token) return res.status(401).json({ message: 'Từ chối truy cập! Yêu cầu đăng nhập.' });
 
-    try {
-        // Cắt bỏ chữ "Bearer " phía trước để lấy đúng mã token
-        const cleanToken = token.replace('Bearer ', '');
-        
-        // Dùng chìa khóa bí mật để giải mã
-        const verified = jwt.verify(cleanToken, process.env.JWT_SECRET);
-        req.user = verified;
-        
-        // Cho phép đi tiếp vào API bên trong
-        next(); 
-    } catch (err) {
-        res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
-    }
-}
 // 5. API Lấy Bảng Nội Quy
 app.get('/api/rules', async (req, res) => {
     try {
