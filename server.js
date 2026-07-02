@@ -102,7 +102,49 @@ app.get('/api/stories', async (req, res) => {
         res.status(500).json({ message: "Lỗi khi lấy dữ liệu truyện!" });
     }
 });
+// --- HỆ THỐNG ĐÁNH GIÁ SAO (RATING) ---
+const RatingSchema = new mongoose.Schema({
+    storyId: { type: String, required: true },
+    uuid: { type: String, required: true }, // Nhận diện người đánh giá để không bị bão vote
+    score: { type: Number, required: true }
+});
+const Rating = mongoose.model('Rating', RatingSchema);
 
+// API 1: Lấy điểm trung bình của truyện
+app.get('/api/stories/:id/rating', async (req, res) => {
+    try {
+        const ratings = await Rating.find({ storyId: req.params.id });
+        if (ratings.length === 0) return res.json({ average: 0, count: 0 });
+        
+        const sum = ratings.reduce((a, b) => a + b.score, 0);
+        const average = (sum / ratings.length).toFixed(1);
+        res.json({ average: parseFloat(average), count: ratings.length });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi lấy đánh giá' });
+    }
+});
+
+// API 2: Gửi điểm đánh giá (Tự động ghi đè nếu người này đổi ý muốn chấm lại)
+app.post('/api/stories/:id/rating', async (req, res) => {
+    try {
+        const { uuid, score } = req.body;
+        // Lưu hoặc cập nhật điểm của người dùng này
+        await Rating.findOneAndUpdate(
+            { storyId: req.params.id, uuid: uuid },
+            { score: score },
+            { upsert: true, new: true }
+        );
+        
+        // Tính lại điểm trung bình ngay lập tức để trả về cho web
+        const ratings = await Rating.find({ storyId: req.params.id });
+        const sum = ratings.reduce((a, b) => a + b.score, 0);
+        const average = (sum / ratings.length).toFixed(1);
+        
+        res.json({ average: parseFloat(average), count: ratings.length });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi lưu đánh giá' });
+    }
+});
 // API Tạm thời: Khởi tạo dữ liệu mẫu
 app.get('/api/seed', async (req, res) => {
     try {
