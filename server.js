@@ -406,6 +406,58 @@ app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi lưu chương truyện' });
     }
 });
+// ==========================================
+// THÊM MỚI: API CHỈNH SỬA TRUYỆN & CHƯƠNG
+// ==========================================
+
+// API: Chỉnh sửa thông tin bộ truyện (Bắt buộc có Token)
+app.put('/api/stories/:id', verifyToken, async (req, res) => {
+    try {
+        const { title, author, desc, status } = req.body;
+        
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện!' });
+
+        // Cập nhật các trường dữ liệu nếu có gửi lên
+        if (title !== undefined) story.title = title;
+        if (author !== undefined) story.author = author;
+        if (desc !== undefined) story.desc = desc;
+        if (status !== undefined) story.status = status;
+
+        await story.save();
+        res.json({ message: 'Cập nhật thông tin truyện thành công!' });
+    } catch (error) {
+        console.error("Lỗi cập nhật truyện:", error);
+        res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật truyện' });
+    }
+});
+
+// API: Chỉnh sửa nội dung chương truyện (Bắt buộc có Token)
+app.put('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req, res) => {
+    try {
+        const { storyId, chapterId } = req.params;
+        const { title, content } = req.body;
+
+        const story = await Story.findById(storyId);
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện!' });
+
+        // Dùng vòng lặp find() tìm id chương (Giống cách bạn đã làm ở route Vote để né lỗi Mongoose)
+        const chapter = story.chaptersData.find(chap => chap._id.toString() === chapterId.toString());
+        
+        if (!chapter) return res.status(404).json({ message: 'Không tìm thấy chương truyện này!' });
+
+        // Cập nhật dữ liệu chương
+        if (title !== undefined) chapter.title = title;
+        if (content !== undefined) chapter.content = content;
+
+        await story.save();
+        res.json({ message: 'Cập nhật chương truyện thành công!' });
+    } catch (error) {
+        console.error("Lỗi cập nhật chương:", error);
+        res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật chương' });
+    }
+});
+// ==========================================
 // API: Xóa một bộ truyện (Bắt buộc có Token)
 app.delete('/api/stories/:id', verifyToken, async (req, res) => {
     try {
