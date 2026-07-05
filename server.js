@@ -378,6 +378,24 @@ app.post('/api/stories/:storyId/chapters/:chapterId/vote', async (req, res) => {
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
 // API: Nhận file ảnh từ máy tính (Tối đa 20 ảnh 1 lúc)
 // API: Thêm chương mới vào một bộ truyện (Bắt buộc có Token)
+// API: Nhận file ảnh từ máy tính (Tối đa 20 ảnh 1 lúc)
+app.post('/api/upload', verifyToken, upload.array('images', 20), async (req, res) => {
+    try {
+        // Kiểm tra xem có file nào được gửi lên không
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'Không tìm thấy file ảnh nào được tải lên!' });
+        }
+        
+        // Lấy danh sách các đường link ảnh đã được Cloudinary trả về
+        const imageUrls = req.files.map(file => file.path);
+        
+        // Gửi link ảnh về cho trang Web hiển thị
+        res.json({ urls: imageUrls, message: 'Tải ảnh lên thành công!' });
+    } catch (error) {
+        console.error("Lỗi upload ảnh:", error);
+        res.status(500).json({ message: 'Lỗi server khi lưu ảnh' });
+    }
+});
 app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
     try {
         const storyId = req.params.id;
