@@ -483,6 +483,33 @@ app.delete('/api/stories/:storyId/chapters/:chapterId', verifyToken, async (req,
         res.status(500).json({ message: 'Lỗi khi xóa chương' });
     }
 });
+// ==========================================
+// API: QUẢN LÝ THÔNG TIN KHU TÁC GIẢ
+// ==========================================
+app.get('/api/author', async (req, res) => {
+    try {
+        let config = await SystemConfig.findOne({ key: 'author_profile' });
+        if (!config || config.value.length === 0) {
+            // Dữ liệu mặc định nếu chưa lưu lần nào
+            return res.json({ 
+                name: "Vinh Ng", 
+                avatar: "AVT/IRO.jpg", 
+                bg: "", 
+                intro: "<p>Xin chào, mình là chủ nhân của <strong class=\"text-sakura-dark dark:text-night-accent font-handwriting text-2xl\">My Tale</strong>. Nơi đây là góc nhỏ mình lưu giữ những kỷ niệm, những câu chuyện tình cảm học đường mộng mơ mà mình sáng tác.</p><p>Dù ngoài kia có giông bão hay nắng gắt, mình hi vọng khi bước vào My Tale, bạn sẽ tìm thấy sự bình yên, tiếng cười và một chút ngọt ngào của tuổi trẻ.</p>" 
+            });
+        }
+        res.json(JSON.parse(config.value[0]));
+    } catch (error) { res.status(500).json({ message: 'Lỗi tải thông tin tác giả' }); }
+});
+
+app.put('/api/author', verifyToken, async (req, res) => {
+    try {
+        const profileData = JSON.stringify(req.body);
+        await SystemConfig.findOneAndUpdate({ key: 'author_profile' }, { value: [profileData] }, { upsert: true });
+        res.json({ message: 'Đã cập nhật Khu Tác Giả thành công!' });
+    } catch (error) { res.status(500).json({ message: 'Lỗi khi lưu thông tin' }); }
+});
+// ==========================================
 // --- KHU VỰC CỘNG ĐỒNG ẨN DANH ---
 
 // 1. Danh sách từ cấm (Bạn hãy bổ sung thêm các từ tục tĩu, nhạy cảm vào đây)
