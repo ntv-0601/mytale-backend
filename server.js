@@ -93,9 +93,19 @@ app.get('/', (req, res) => {
 // API: Lấy toàn bộ danh sách truyện
 app.get('/api/stories', async (req, res) => {
     try {
-        // Lệnh tìm tất cả truyện trong Database
-        const stories = await Story.find(); 
-        // Trả kết quả về dạng JSON
+        const stories = await Story.find().lean(); // Dùng .lean() để có thể chỉnh sửa object trực tiếp
+        
+        // Duyệt qua từng truyện để lấy điểm đánh giá trung bình
+        for (let story of stories) {
+            const ratings = await Rating.find({ storyId: story._id.toString() });
+            if (ratings.length === 0) {
+                story.averageRating = 0; // Chưa có ai đánh giá
+            } else {
+                const sum = ratings.reduce((a, b) => a + b.score, 0);
+                story.averageRating = parseFloat((sum / ratings.length).toFixed(1));
+            }
+        }
+        
         res.json(stories); 
     } catch (error) {
         console.error(error);
