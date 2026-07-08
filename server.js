@@ -210,27 +210,26 @@ app.get('/api/seed', async (req, res) => {
         res.status(500).json({ message: "Có lỗi xảy ra" });
     }
 });
-// API: Cập nhật lượt thả tim (Không cần Token để độc giả nào cũng thả tim được)
-app.put('/api/stories/:id', verifyToken, async (req, res) => {
+// =================================================================
+// 1. API: ĐỘC GIẢ THẢ TIM (Không cần Token, để ai cũng bấm tim được)
+// =================================================================
+app.put('/api/stories/:id/like', async (req, res) => {
     try {
-        const { title, author, desc, status, tags } = req.body; // Thêm nhận trường tags ở đây
+        const { likes } = req.body;
         
+        // Tìm truyện và chỉ cập nhật duy nhất trường likes
         const story = await Story.findById(req.params.id);
-        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện!' });
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện để thả tim!' });
 
-
-        // Cập nhật các trường dữ liệu nếu có gửi lên
-        if (title !== undefined) story.title = title;
-        if (author !== undefined) story.author = author;
-        if (desc !== undefined) story.desc = desc;
-        if (status !== undefined) story.status = status;
-        if (tags !== undefined) story.tags = tags; // <-- CHÈN DÒNG NÀY ĐỂ LƯU THỂ LOẠI MỚI VÀO DB
+        if (likes !== undefined) {
+            story.likes = Math.max(0, likes); // Đảm bảo số tim không âm
+        }
 
         await story.save();
-        res.json({ message: 'Cập nhật thông tin truyện thành công!' });
+        res.json({ message: 'Thả tim thành công!', likes: story.likes });
     } catch (error) {
-        console.error("Lỗi cập nhật truyện:", error);
-        res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật truyện' });
+        console.error("Lỗi khi lưu tim:", error);
+        res.status(500).json({ message: 'Lỗi server khi thả tim' });
     }
 });
 app.get('/api/setup-admin', async (req, res) => {
@@ -476,7 +475,7 @@ app.post('/api/stories/:id/chapters', verifyToken, async (req, res) => {
 // API: Chỉnh sửa thông tin bộ truyện (Bắt buộc có Token)
 app.put('/api/stories/:id', verifyToken, async (req, res) => {
     try {
-        const { title, author, desc, status, tags } = req.body; // Nhận đầy đủ bao gồm tags
+        const { title, author, desc, status, tags } = req.body;
         
         const story = await Story.findById(req.params.id);
         if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện!' });
@@ -485,14 +484,14 @@ app.put('/api/stories/:id', verifyToken, async (req, res) => {
         if (title !== undefined) story.title = title;
         if (author !== undefined) story.author = author;
         if (desc !== undefined) story.desc = desc;
-        if (tags !== undefined) story.tags = tags; // Lưu mảng tags động
+        if (tags !== undefined) story.tags = tags;
 
-        // Xử lý chuẩn hóa trạng thái về dạng không dấu, viết liền
+        // Chuẩn hóa trạng thái về dạng không dấu viết liền để đồng bộ bộ lọc
         if (status !== undefined) {
             if (status === 'Đang ra') story.status = 'dang-ra';
             else if (status === 'Hoàn thành') story.status = 'hoan-thanh';
             else if (status === 'Tạm ngưng') story.status = 'tam-ngung';
-            else story.status = status; // Nếu đã gửi dạng 'dang-ra' từ frontend thì nhận luôn
+            else story.status = status;
         }
 
         await story.save();
