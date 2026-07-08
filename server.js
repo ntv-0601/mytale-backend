@@ -860,6 +860,26 @@ app.delete('/api/comments/:id', verifyToken, async (req, res) => {
 // Định nghĩa cổng chạy server
 const PORT = process.env.PORT || 5000;
 
+// API: Lấy danh sách tất cả các thể loại đang có trong Database (Không trùng lặp)
+app.get('/api/tags', async (req, res) => {
+    try {
+        // Lấy tất cả mảng tags từ các truyện, sau đó gộp phẳng và lọc trùng
+        const stories = await Story.find({}, 'tags');
+        const allTags = stories.reduce((acc, story) => {
+            if (story.tags && Array.isArray(story.tags)) {
+                story.tags.forEach(tag => {
+                    if (!acc.includes(tag.trim())) {
+                        acc.push(tag.trim());
+                    }
+                });
+            }
+            return acc;
+        }, []);
+        res.json(allTags);
+    } catch (error) {
+        res.status(500).json({ message: "Lỗi khi lấy danh sách thể loại!" });
+    }
+});
 // Ép buộc hệ thống mở cửa ở địa chỉ 0.0.0.0 để Render có thể nhìn thấy
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server đang chạy ngon lành trên cổng ${PORT}`);
