@@ -882,11 +882,23 @@ app.get('/api/comments/:storyId', async (req, res) => {
 // API: Gửi bình luận mới
 app.post('/api/comments', async (req, res) => {
     try {
-        const newComment = new Comment(req.body);
+        // 1. Nhận thêm parentId từ req.body
+        const { storyId, chapterIndex, uuid, content, parentId } = req.body; 
+        
+        const newComment = new Comment({
+            storyId,
+            chapterIndex,
+            uuid,
+            content,
+            // 2. Lưu parentId vào database (nếu không có thì để null)
+            parentId: parentId || null 
+        });
+        
         await newComment.save();
-        res.json(newComment);
+        res.status(201).json(newComment);
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi gửi bình luận' });
+        console.error("Lỗi:", error);
+        res.status(500).json({ message: "Lỗi lưu bình luận" });
     }
 });
 
