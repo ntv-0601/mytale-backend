@@ -18,7 +18,7 @@ const SystemConfig = mongoose.model('SystemConfig', SystemConfigSchema);
 const app = express();
 const multer = require('multer');
 
-const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/ig;
+const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\b)/i;
 // 1. Tự động tạo thư mục 'uploads' nếu chưa có
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -49,6 +49,7 @@ app.use('/uploads', express.static('uploads'));
 // Cấu hình cơ bản
 app.use(cors()); // Cho phép gọi API chéo tên miền
 app.use(express.json()); // Giúp server đọc được dữ liệu dạng JSON
+app.set('trust proxy', true);
 function verifyToken(req, res, next) {
     // Lấy token từ header của request
     const token = req.header('Authorization');
@@ -704,7 +705,7 @@ app.delete('/api/messages/:id', async (req, res) => {
 // API: Kiểm tra trạng thái Ban của người dùng hiện tại (Dùng để khóa giao diện)
 app.get('/api/check-ban', async (req, res) => {
     try {
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const clientIp = req.ip;
         const uuid = req.query.uuid;
         
         // Kiểm tra xem IP hoặc UUID này có trong Sổ đen không
@@ -726,7 +727,7 @@ app.post('/api/messages', async (req, res) => {
         const { uuid, content, replyToId, replyToText } = req.body;
 
         // Thuật toán bóc tách IP thật của người gửi
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const clientIp = req.ip;
 
         // 1. SỬA LỖI TẠI ĐÂY: Kiểm tra xem IP hoặc UUID này có nằm trong Sổ đen không
         const isBanned = await BannedUser.findOne({
@@ -743,7 +744,21 @@ app.post('/api/messages', async (req, res) => {
         // 2. Quét từ ngữ vi phạm
         const lowerContent = content.toLowerCase();
         const containsBadWord = badWords.some(word => lowerContent.includes(word.toLowerCase()));
+        // Bên trong app.post('/api/messages')
+        const isAdminOrQtv = uuid.toLowerCase() === 'vinhng' || uuid.startsWith('QTV');
 
+        // Nếu là Admin/QTV thì cho qua, không cần check isBanned
+        if (!isAdminOrQtv) {
+            const isBanned = await BannedUser.findOne({
+                $or: [
+                    { ipAddress: clientIp },
+                    { ipAddress: uuid }
+                ]
+            });
+            if (isBanned) {
+                return res.status(403).json({ message: 'Thiết bị hoặc tài khoản của bạn đã bị chặn vĩnh viễn...' });
+            }
+        }
         if (containsBadWord) {
             // Tống cổ địa chỉ IP này vào Sổ đen
             const newBan = new BannedUser({ ipAddress: clientIp });
