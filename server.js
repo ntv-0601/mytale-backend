@@ -769,24 +769,24 @@ app.post('/api/messages', async (req, res) => {
             }
         }
         if (containsBadWord) {
-            // Tống cổ địa chỉ IP này vào Sổ đen
-            const newBan = new BannedUser({ ipAddress: clientIp });
-            await newBan.save();
-            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Đường truyền của bạn đã bị cấm.' });
-        }
+    // Tống cổ UUID vào Sổ đen thay vì clientIp
+                const newBan = new BannedUser({ ipAddress: uuid }); // Lưu tạm uuid vào trường ipAddress
+                await newBan.save();
+                return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Thiết bị của bạn đã bị cấm.' });
+            }
 
         // 3. Kiểm tra và chặn đường link (Giữ nguyên phần code đã thêm ở bước trước)
         if (urlRegex.test(content)) {
-            let spammer = await LinkSpammer.findOne({ ipAddress: clientIp });
+            let spammer = await LinkSpammer.findOne({ ipAddress: uuid });
             if (!spammer) {
-                spammer = new LinkSpammer({ ipAddress: clientIp, count: 1 });
+                spammer = new LinkSpammer({ ipAddress: uuid, count: 1 });
             } else {
                 spammer.count += 1;
             }
             await spammer.save();
 
             if (spammer.count > 2) {
-                const newBan = new BannedUser({ ipAddress: clientIp });
+                const newBan = new BannedUser({ ipAddress: uuid }); // Ban UUID
                 await newBan.save();
                 return res.status(403).json({ message: 'Bạn đã cố tình gửi đường link quá số lần quy định! Thiết bị đã bị cấm.' });
             } else {
