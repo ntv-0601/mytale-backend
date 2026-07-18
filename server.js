@@ -744,13 +744,8 @@ app.post('/api/messages', async (req, res) => {
         // 2. Quét từ ngữ vi phạm
         const lowerContent = content.toLowerCase();
         const containsBadWord = badWords.some(word => {
-            // Ép kiểu word về chữ thường và bỏ bớt khoảng trắng thừa ở 2 đầu
             const cleanWord = word.toLowerCase().trim(); 
-            
-            // Dùng Regex tạo ranh giới từ. (^|\s) nghĩa là đầu câu hoặc có khoảng trắng phía trước. 
-            // (?=\s|$) nghĩa là cuối câu hoặc có khoảng trắng phía sau.
             const regex = new RegExp(`(^|\\s)${cleanWord}(?=\\s|$)`, 'i');
-            
             return regex.test(lowerContent);
         });
         // Bên trong app.post('/api/messages')
@@ -770,9 +765,9 @@ app.post('/api/messages', async (req, res) => {
         }
         if (containsBadWord) {
     // Tống cổ UUID vào Sổ đen thay vì clientIp
-                const newBan = new BannedUser({ ipAddress: uuid }); // Lưu tạm uuid vào trường ipAddress
-                await newBan.save();
-                return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Thiết bị của bạn đã bị cấm.' });
+                const newBan = new BannedUser({ ipAddress: uuid });
+            await newBan.save();
+            return res.status(403).json({ message: 'Phát hiện ngôn từ vi phạm! Thiết bị của bạn đã bị cấm.' });
             }
 
         // 3. Kiểm tra và chặn đường link (Giữ nguyên phần code đã thêm ở bước trước)
@@ -786,7 +781,8 @@ app.post('/api/messages', async (req, res) => {
             await spammer.save();
 
             if (spammer.count > 2) {
-                const newBan = new BannedUser({ ipAddress: uuid }); // Ban UUID
+                // SỬA Ở ĐÂY: Tống cổ 'uuid' vào sổ đen khi vượt quá số lần
+                const newBan = new BannedUser({ ipAddress: uuid });
                 await newBan.save();
                 return res.status(403).json({ message: 'Bạn đã cố tình gửi đường link quá số lần quy định! Thiết bị đã bị cấm.' });
             } else {
