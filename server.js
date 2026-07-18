@@ -743,7 +743,16 @@ app.post('/api/messages', async (req, res) => {
 
         // 2. Quét từ ngữ vi phạm
         const lowerContent = content.toLowerCase();
-        const containsBadWord = badWords.some(word => lowerContent.includes(word.toLowerCase()));
+        const containsBadWord = badWords.some(word => {
+            // Ép kiểu word về chữ thường và bỏ bớt khoảng trắng thừa ở 2 đầu
+            const cleanWord = word.toLowerCase().trim(); 
+            
+            // Dùng Regex tạo ranh giới từ. (^|\s) nghĩa là đầu câu hoặc có khoảng trắng phía trước. 
+            // (?=\s|$) nghĩa là cuối câu hoặc có khoảng trắng phía sau.
+            const regex = new RegExp(`(^|\\s)${cleanWord}(?=\\s|$)`, 'i');
+            
+            return regex.test(lowerContent);
+        });
         // Bên trong app.post('/api/messages')
         const isAdminOrQtv = uuid.toLowerCase() === 'vinhng' || uuid.startsWith('QTV');
 
