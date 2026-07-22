@@ -744,8 +744,10 @@ app.post('/api/messages', async (req, res) => {
         // 2. Quét từ ngữ vi phạm
         const lowerContent = content.toLowerCase();
         const containsBadWord = badWords.some(word => {
-            const cleanWord = word.toLowerCase().trim(); 
-            const regex = new RegExp(`(^|\\s)${cleanWord}(?=\\s|$)`, 'i');
+            const cleanWord = word.toLowerCase().trim();
+            // Thêm hàm escape để vô hiệu hóa sức mạnh của các ký tự đặc biệt
+            const escapedWord = cleanWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+            const regex = new RegExp(`(^|\\s)${escapedWord}(?=\\s|$)`, 'i');
             return regex.test(lowerContent);
         });
         // Bên trong app.post('/api/messages')
